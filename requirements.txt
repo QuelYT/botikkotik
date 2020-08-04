@@ -53,6 +53,7 @@ PySocks
 pyTelegramBotAPI
 python-jwt
 query-string
+request
 requests
 requests-toolbelt
 rfc3986
