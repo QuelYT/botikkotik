@@ -1,5 +1,4 @@
 aiohttp
-astroid
 astunparse
 async-timeout
 asyncio
@@ -46,7 +45,6 @@ public
 pyasn1
 pyasn1-modules
 pycparser
-pylint
 PyNaCl
 PySide2
 PySocks
