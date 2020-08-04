@@ -12,7 +12,6 @@ import asyncio
 import random as r
 
 import nekos
-import youtube_dl
 
 from discord.ext import commands
 from discord.utils import get
@@ -23,14 +22,17 @@ from Cybernator import Paginator as pag
 client = commands.Bot(command_prefix = settings['PREFIX'])
 client.remove_command('help')
 
+# Префикс бота
 PREFIX = settings['PREFIX']
+
+# Токен бота
 token = os.environ('TOKEN')
+
+# Ссылка на приглашение бота
+joinLink = settings['JOIN LINK']
 
 connection = sqlite3.connect('server.db')
 cursor = connection.cursor()
-
-# Ссылка на приглашение бота
-joinLink = 'https://discord.com/api/oauth2/authorize?client_id=711626790052954225&permissions=8&scope=bot'
 
 # Бот включается
 @client.event
@@ -166,6 +168,26 @@ async def __delete_item(ctx, role: discord.Role = None):
 
 		await ctx.message.add_reaction('✅')
 
+# EDIT-PRICE COMMAND
+@client.command(aliases = ['edit-price'])
+async def __edit_price(ctx, role: discord.Role = None, cost: int = None):
+	if role is None:
+		await ctx.send(f"**{ctx.author}**, укажите роль, которую желаете изменить")
+	else:
+		if cost is None:
+			await ctx.send(f"**{ctx.author}**, укажите стоимость данной роли")
+		elif cost < 0:
+			await ctx.send(f"**{ctx.author}**, укажите сумму больше 0")
+		else:
+			cursor.execute("DELETE FROM shop Where role_id = {}".format(role.id))
+
+			connection.commit()
+
+			cursor.execute("INSERT INTO shop VALUES ({}, {}, {})".format(role.id, ctx.guild.id, cost))
+			connection.commit()
+
+			await ctx.message.add_reaction('✅')
+
 # SHOP COMMAND
 @client.command(aliases = ['shop', 'store'])
 async def __shop(ctx):
@@ -225,7 +247,7 @@ async def __br(ctx, amount: int = None):
 @client.command(aliases = ['case', 'c'])
 async def __case(ctx):
     case_roll = random.randint(1, 60)
-    cursor.execute("UPDATE users SET cash = cash + {}".format(case_roll))
+    cursor.execute("UPDATE users SET cash = cash + {} WHERE id = {}".format(case_roll, ctx.author.id))
     await ctx.send(embed = discord.Embed(title = "You have opened a free case:", description = f"**{ctx.author.mention}**, выпало число **{case_roll}**!", colour = discord.Color.green()))
     connection.commit()
 
@@ -312,8 +334,9 @@ async def __help(ctx):
 	emb1 = discord.Embed(title='Информация:', colour=discord.Color.green())
 	emb2 = discord.Embed(title='Модерирование:', colour=discord.Color.green())
 	emb3 = discord.Embed(title='Весёлое:', colour=discord.Color.green())
+	emb4 = discord.Embed(title='Экономика', colour=discord.Color.green())
 
-	embs = [emb1, emb2, emb3]
+	embs = [emb1, emb2, emb3, emb4]
 
 	message = await ctx.send(embed=emb1)  
 	page = pag(client, message, only = ctx.author, use_more = False, embeds = embs)
@@ -336,6 +359,16 @@ async def __help(ctx):
 	emb3.add_field(name= '{}sugg'.format(PREFIX), value='Предложение')
 	emb3.add_field(name= '{}case'.format(PREFIX), value='Открыть кейс')
 	emb3.add_field(name= '{}goose'.format(PREFIX), value='Весёлая фотография гуся')
+
+	# Economy (emb4)
+	emb3.add_field(name= '{}cash'.format(PREFIX), value='Узнать баланс человека')
+	emb3.add_field(name= '{}store'.format(PREFIX), value='Узнать содержимое магазина')
+	emb3.add_field(name= '{}add-item'.format(PREFIX), value='Добавить предмет в магазин')
+	emb3.add_field(name= '{}delete-item'.format(PREFIX), value='Удалить предмет из магазина')
+	emb3.add_field(name= '{}edit-price'.format(PREFIX), value='Редактировать стоимость предмета')
+	emb3.add_field(name= '{}add-cash'.format(PREFIX), value='Добавить денег на баланс человека')
+	emb3.add_field(name= '{}take-cash'.format(PREFIX), value='Убрать деньги с баланса человека')
+	emb3.add_field(name= '{}pay'.format(PREFIX), value='Перевести деньги со своего баланса на баланс другого человека')
 
 	await page.start()
 
@@ -372,8 +405,8 @@ async def __serverinfo(ctx, member: discord.Member = None):
     await ctx.send(embed=emb)
 
 # Suggest
-@client.command( pass_context = True, aliases = [ "Предложить", "предложить", "предложка", "Предложка", "Suggest" ])
-async def sugg( ctx , * , agr ):
+@client.command(aliases = ['sugg'])
+async def __sugg( ctx , * , agr ):
     emb = discord.Embed(title=f"{ctx.author.name} Предложил :", description= f" {agr} \n\n", color=0xff0000,timestamp=ctx.message.created_at)
 
     emb.set_thumbnail(url=ctx.guild.icon_url)
@@ -393,8 +426,8 @@ async def botinfo(ctx):
 	await ctx.send(embed=emb)
 
 # Userinfo
-@client.command(pass_context=True)
-async def userinfo(ctx, member: discord.Member):
+@client.command(aliases = ['userinfo'])
+async def __userinfo(ctx, member: discord.Member):
     roles = member.roles
     role_list = ""
     for role in roles:
@@ -415,14 +448,14 @@ async def userinfo(ctx, member: discord.Member):
     await ctx.send(embed = emb)
 
 # Invite command
-@client.command(pass_context = True)
-async def invite(ctx):
+@client.command(aliases = ['invite'])
+async def __invite(ctx):
 	await ctx.send('Ссылка для приглашения бота на свой сервер: ' + joinLink)
 	
 
 # Time command
-@client.command(pass_context = True)
-async def time(ctx):
+@client.command(aliases = ['time'])
+async def __time(ctx):
 	emb  = discord.Embed(title = f'{ctx.author}, получай время', colour = discord.Color.blue(), url='https://www.timeserver.ru/')
 
 	emb.set_author(name = client.user.name, icon_url = client.user.avatar_url)
@@ -436,32 +469,9 @@ async def time(ctx):
 
 	await ctx.send( embed = emb)
 
-# Facts command
-@client.command(aliases = ['fact', 'факт'])
-async def __fact(ctx):
-    facts = nekos.fact() # Случайный факт ( на английском языке )
-    t = Translator() # Переводчик
-    result = t.translate(facts, dest = 'ru') # Выбираем текст, который будем редактировать ( в нашем случае facts и переводим на русский язык ( dest = 'ru'))
-
-    embed = discord.Embed(color = 0x46faac) # Создаем эмбед
-    embed.set_author(icon_url = 'https://www.flaticon.com/premium-icon/icons/svg/1177/1177379.svg', name = 'Другое | Факты')
-    embed.description = result.text # Текст, который мы перевели ( переменная result )
-    embed.set_footer(text = '| © All rights reserved', icon_url = 'https://cdn.discordapp.com/attachments/681750357449113606/731949874542805042/florow-logo.png')
-    embed.timestamp = datetime.datetime.utcnow() # Дата
-    await ctx.send(embed = embed) # Выводим текст
-
-# Members_info command
-@client.command()
-@commands.has_permissions(administrator = True)
-async def members_info(ctx):
-    server_members = ctx.guild.members
-    data = "\n".join([i.name for i in server_members])
-    
-    await ctx.send(data)
-
 # Писать в лс
-@client.command()
-async def sms(ctx, member: discord.Member, *, arg):
+@client.command(aliases = ['sms'])
+async def __sms(ctx, member: discord.Member, *, arg):
     await member.send(embed = discord.Embed(title = "Сообщение от {}: \n{}".format(ctx.author, arg), colour = discord.Color.red()))
 
     await ctx.message.add_reaction('✅')
